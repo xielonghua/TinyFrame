@@ -16,7 +16,7 @@
 #include <stdint.h>  // for uint8_t etc
 #include <stdbool.h> // for bool
 #include <stddef.h>  // for NULL
-#include <string.h>  // for memset()
+
 //---------------------------------------------------------------------------
 
 // Checksum type (0 = none, 8 = ~XOR, 16 = CRC16 0x8005, 32 = CRC32)
@@ -30,6 +30,15 @@
 #define TF_CKSUM_CUSTOM32 3  // Custom 32-bit checksum
 
 #include "TF_Config.h"
+
+#if TF_USE_CUSTOM_MALLOC_FUNC == 0
+	#include <string.h>  // for memset()
+	#define TF_malloc	malloc
+	#define TF_free		free
+	#define TF_memset	memset	
+#else
+	
+#endif
 
 //region Resolve data types
 
@@ -132,7 +141,7 @@ typedef struct TF_Msg_ {
  *
  * @param msg - message to clear in-place
  */
-static inline void TF_ClearMsg(TF_Msg *msg)
+static __inline void TF_ClearMsg(TF_Msg *msg)
 {
     memset(msg, 0, sizeof(TF_Msg));
 }
@@ -159,7 +168,7 @@ typedef TF_Result (*TF_Listener)(TinyFrame *tf, TF_Msg *msg);
  * The field .userdata (or .usertag) can be used to identify different instances
  * in the TF_WriteImpl() function etc. Set this field after the init.
  *
- * This function is a wrapper around TF_InitStatic that calls malloc() to obtain
+ * This function is a wrapper around TF_InitStatic that calls TF_malloc() to obtain
  * the instance.
  *
  * @param tf - instance

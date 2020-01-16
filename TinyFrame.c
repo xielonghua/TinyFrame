@@ -1,6 +1,10 @@
 //---------------------------------------------------------------------------
 #include "TinyFrame.h"
-#include <stdlib.h> // - for malloc() if dynamic constructor is used
+#if TF_USE_CUSTOM_MALLOC_FUNC == 0
+	#include <stdlib.h> // - for malloc() if dynamic constructor is used
+#else 
+	#include "custom_malloc.h"
+#endif
 //---------------------------------------------------------------------------
 
 // Compatibility with ESP8266 SDK
@@ -70,7 +74,7 @@
 
 #elif TF_CKSUM_TYPE == TF_CKSUM_CRC8
 
-    static inline uint8_t crc8_bits(uint8_t data)
+    static __inline uint8_t crc8_bits(uint8_t data)
     {
         uint8_t crc = 0;
         if(data & 1)     crc ^= 0x5e;
@@ -213,14 +217,16 @@
 /** Init with a user-allocated buffer */
 bool _TF_FN TF_InitStatic(TinyFrame *tf, TF_Peer peer_bit)
 {
+    uint32_t usertag ;
+    void * userdata ;	
     if (tf == NULL) {
         TF_Error("TF_InitStatic() failed, tf is null.");
         return false;
     }
 
     // Zero it out, keeping user config
-    uint32_t usertag = tf->usertag;
-    void * userdata = tf->userdata;
+    usertag = tf->usertag;
+    userdata = tf->userdata;
 
     memset(tf, 0, sizeof(struct TinyFrame_));
 
@@ -231,10 +237,10 @@ bool _TF_FN TF_InitStatic(TinyFrame *tf, TF_Peer peer_bit)
     return true;
 }
 
-/** Init with malloc */
+/** Init with TF_malloc */
 TinyFrame * _TF_FN TF_Init(TF_Peer peer_bit)
 {
-    TinyFrame *tf = malloc(sizeof(TinyFrame));
+    TinyFrame *tf = TF_malloc(sizeof(TinyFrame));
     if (!tf) {
         TF_Error("TF_Init() failed, out of memory.");
         return NULL;
@@ -248,7 +254,7 @@ TinyFrame * _TF_FN TF_Init(TF_Peer peer_bit)
 void TF_DeInit(TinyFrame *tf)
 {
     if (tf == NULL) return;
-    free(tf);
+    TF_free(tf);
 }
 
 //endregion Init
@@ -257,7 +263,7 @@ void TF_DeInit(TinyFrame *tf)
 //region Listeners
 
 /** Reset ID listener's timeout to the original value */
-static inline void _TF_FN renew_id_listener(struct TF_IdListener_ *lst)
+static __inline void _TF_FN renew_id_listener(struct TF_IdListener_ *lst)
 {
     lst->timeout = lst->timeout_max;
 }
@@ -284,7 +290,7 @@ static void _TF_FN cleanup_id_listener(TinyFrame *tf, TF_COUNT i, struct TF_IdLi
 }
 
 /** Clean up Type listener */
-static inline void _TF_FN cleanup_type_listener(TinyFrame *tf, TF_COUNT i, struct TF_TypeListener_ *lst)
+static __inline void _TF_FN cleanup_type_listener(TinyFrame *tf, TF_COUNT i, struct TF_TypeListener_ *lst)
 {
     lst->fn = NULL; // Discard listener
     if (i == tf->count_type_lst - 1) {
@@ -293,7 +299,7 @@ static inline void _TF_FN cleanup_type_listener(TinyFrame *tf, TF_COUNT i, struc
 }
 
 /** Clean up Generic listener */
-static inline void _TF_FN cleanup_generic_listener(TinyFrame *tf, TF_COUNT i, struct TF_GenericListener_ *lst)
+static __inline void _TF_FN cleanup_generic_listener(TinyFrame *tf, TF_COUNT i, struct TF_GenericListener_ *lst)
 {
     lst->fn = NULL; // Discard listener
     if (i == tf->count_generic_lst - 1) {
@@ -767,7 +773,7 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
  * @param msg - message written to the buffer
  * @return nr of bytes in outbuff used by the frame, 0 on failure
  */
-static inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF_Msg *msg)
+static __inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF_Msg *msg)
 {
     int8_t si = 0; // signed small int
     uint8_t b = 0;
@@ -822,7 +828,7 @@ static inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF
  * @param cksum - checksum variable, used for all calls to TF_ComposeBody. Must be reset before first use! (CKSUM_RESET(cksum);)
  * @return nr of bytes in outbuff used
  */
-static inline uint32_t _TF_FN TF_ComposeBody(uint8_t *outbuff,
+static __inline uint32_t _TF_FN TF_ComposeBody(uint8_t *outbuff,
                                     const uint8_t *data, TF_LEN data_len,
                                     TF_CKSUM *cksum)
 {
@@ -846,7 +852,7 @@ static inline uint32_t _TF_FN TF_ComposeBody(uint8_t *outbuff,
  * @param cksum - checksum variable used for the body
  * @return nr of bytes in outbuff used
  */
-static inline uint32_t _TF_FN TF_ComposeTail(uint8_t *outbuff, TF_CKSUM *cksum)
+static __inline uint32_t _TF_FN TF_ComposeTail(uint8_t *outbuff, TF_CKSUM *cksum)
 {
     int8_t si = 0; // signed small int
     uint8_t b = 0;

@@ -76,6 +76,12 @@ typedef uint8_t TF_COUNT;
 // Error reporting function. To disable debug, change to empty define
 #define TF_Error(format, ...) printf("[TF] " format "\n", ##__VA_ARGS__)
 
+
+//------------------------- system config -----------------------------------
+// Whether to use system memory function
+#define TF_USE_CUSTOM_MALLOC_FUNC 0
+
+
 //------------------------- End of user config ------------------------------
 
 #endif //TF_CONFIG_H
